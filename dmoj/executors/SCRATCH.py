@@ -78,7 +78,10 @@ https://raw.githubusercontent.com/VNOI-Admin/judge-server/master/asset/scratch_t
 
     def populate_result(self, stderr: bytes, result: Result, process: TracedPopen) -> None:
         super().populate_result(stderr, result, process)
-        if process.is_ir and b'scratch-vm encountered an error' in stderr:
+        # Handle JavaScript heap out of memory - set MLE flag
+        if b'JavaScript heap out of memory' in stderr or b'FATAL ERROR' in stderr:
+            result.result_flag |= Result.MLE
+        elif process.is_ir and b'scratch-vm encountered an error' in stderr:
             result.result_flag |= Result.RTE
 
     def parse_feedback_from_stderr(self, stderr: bytes, process: TracedPopen) -> str:
@@ -88,5 +91,8 @@ https://raw.githubusercontent.com/VNOI-Admin/judge-server/master/asset/scratch_t
         if b'scratch-vm encountered an error' in stderr:
             log = log.replace('scratch-vm encountered an error: ', '').strip()
             return '' if len(log) > 50 else log
+        # Handle JavaScript heap out of memory errors - let base executor report as MLE
+        elif b'JavaScript heap out of memory' in stderr or b'FATAL ERROR' in stderr:
+            return ''
         else:
             return log[:50]
